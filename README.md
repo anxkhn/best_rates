@@ -23,9 +23,17 @@ to the US or the Eurozone:
 > If I spend in **USD** or **EUR** abroad on an **INR** card, whose rate is
 > better, Visa or Mastercard, and by how much?
 
-**TL;DR: over the last 365 days, Visa gave the better rate on ~2 of every 3
-days for both USD and EUR, by ~0.14% on average (up to ~1.8% on the best day).
-For an Indian INR card spent abroad, Visa wins.**
+**TL;DR: when you query the network in the direction that actually matters
+(spend foreign, get billed in INR), Mastercard gives the cheaper rate slightly
+more often, on ~58-61% of days, by ~0.06% on average. It is close to a coin
+flip, but Mastercard has the small edge.**
+
+> **Important correction (see [Reverse-direction check](#the-direction-trap-why-you-must-query-the-real-direction)).**
+> An earlier version of this analysis concluded "Visa wins" by *inverting* the
+> forward rate (`1 / rate`). That is wrong: each network charges a directional
+> spread, so the real reverse rate is ~0.2-1.0% worse than the inverse. When
+> measured directly in the reverse direction, the winner flips on ~1 day in 3,
+> and Mastercard, not Visa, comes out ahead overall.
 
 Swap the currencies in `collect.py` to run the same analysis for your own
 country and trip.
@@ -34,34 +42,53 @@ country and trip.
 
 ## The headline numbers
 
-| Metric (INR card spending abroad) | USD/INR | EUR/INR |
+There are two directions, and you must query each one directly (see the
+[direction trap](#the-direction-trap-why-you-must-query-the-real-direction)).
+
+**Direction that matters for an Indian traveller: spend USD/EUR abroad, billed
+in INR (real reverse query, lower INR paid per unit = better):**
+
+| Metric | USD/INR | EUR/INR |
 | --- | --- | --- |
-| Days Visa was cheaper | **264 / 365 (72%)** | **245 / 365 (67%)** |
-| Days Mastercard was cheaper | 101 / 365 | 120 / 365 |
-| Average Visa advantage | **+0.141%** | **+0.138%** |
-| Median Visa advantage | +0.115% | +0.104% |
-| Best single day for Visa | +1.24% (2026-03-20) | +1.83% (2026-03-20) |
-| Worst single day for Visa | -1.36% (2026-02-03) | -1.36% (2026-02-03) |
-| Max absolute gap between networks | 1.35% | 1.86% |
-| Avg markup over ECB mid (Visa) | 0.23% | 0.51% |
-| Avg markup over ECB mid (Mastercard) | 0.09% | 0.37% |
+| Days **Mastercard** was cheaper | **213 / 365 (58%)** | **223 / 365 (61%)** |
+| Days Visa was cheaper | 152 / 365 | 142 / 365 |
+| Average Mastercard advantage | +0.058% | +0.069% |
+| Range of daily gap | -1.25% to +1.56% | -1.25% to +1.99% |
 
-Data window: **2025-07-06 to 2026-07-05** (365 daily observations per pair).
+**Other direction: a USD/EUR card spending in India, billed in foreign
+(the forward calculator mode; fewer foreign units billed = better):**
 
-### Concrete rupee impact
+| Metric | USD/INR | EUR/INR |
+| --- | --- | --- |
+| Days **Mastercard** was cheaper | **264 / 365 (72%)** | **245 / 365 (67%)** |
+| Days Visa was cheaper | 101 / 365 | 120 / 365 |
+| Average Mastercard advantage | +0.141% | +0.138% |
+| Avg markup over ECB mid (Visa / MC) | 0.23% / 0.09% | 0.51% / 0.37% |
 
-| You spend abroad | Avg Visa bill | Avg Mastercard bill | You save with Visa |
+Data window: **2025-07-06 to 2026-07-05** (365 daily observations per pair,
+per direction). **Mastercard is cheaper more often in both directions**, because
+it consistently prices closer to the ECB interbank mid-rate.
+
+### Concrete rupee impact (spend abroad, billed in INR, real reverse query)
+
+| You spend abroad | Avg Visa bill | Avg Mastercard bill | Mastercard saves |
 | --- | --- | --- | --- |
-| $1,000 | Rs 90,523 | Rs 90,651 | **~Rs 128** (up to Rs 1,159) |
-| Euro 1,000 | Rs 1,05,220 | Rs 1,05,367 | **~Rs 147** (up to Rs 1,972) |
+| $1,000 | Rs 90,871 | Rs 90,818 | **~Rs 53** on average |
+| Euro 1,000 | Rs 1,06,272 | Rs 1,06,198 | **~Rs 74** on average |
 
-The gap is small on an average day but real, and both networks are far cheaper
-than a typical bank forex markup of 2 to 3.5%. Your bank's own markup and forex
-fee still dominate the total cost; the network is the smaller lever.
+The gap is tiny (a fraction of a percent) and swings both ways day to day, so in
+practice it is close to a wash with a slight Mastercard lean. Both networks are
+far cheaper than a typical bank forex markup of 2 to 3.5%: your bank's own markup
+and forex fee dominate the total cost, not the network choice.
 
 ---
 
 ## Charts
+
+> Charts 01-06 below use the **forward** dataset (`rates.csv`): transaction in
+> INR, billed in USD/EUR. "Visa advantage" here is derived by inverting the
+> rate; charts 07-08 show why that inversion is misleading and what the **real**
+> reverse direction looks like.
 
 ### USD/INR rate over the year
 Visa and Mastercard track each other closely; the difference lives in the tiny
@@ -69,47 +96,83 @@ daily gap between the two lines.
 
 ![USD to INR rates](charts/01_USD_rates.png)
 
-### How much cheaper Visa is (USD)
-Blue = Visa cheaper, red = Mastercard cheaper. Most of the mass sits above zero.
+### How much cheaper Visa looks in the forward mode (USD)
+Blue = Visa cheaper, red = Mastercard cheaper, in the forward calculator mode.
 
 ![USD advantage](charts/02_USD_gap.png)
 
-### Distribution of the daily advantage (USD)
-The distribution is centred slightly right of zero: a persistent, small Visa
-edge rather than a fluke.
-
+### Distribution of the daily advantage (USD, forward)
 ![USD histogram](charts/03_USD_hist.png)
 
 ### Markup over the ECB mid-market (USD)
 Both networks price above the ECB mid; Mastercard usually sits closer to it,
-which is why Mastercard actually wins the opposite direction (see below).
+which is why Mastercard ends up cheaper in **both** real directions.
 
 ![USD markup](charts/04_USD_markup.png)
 
-### Who wins more often
+### Who wins more often (forward mode)
 ![Win rate](charts/05_winrate.png)
 
-### Monthly average advantage
+### Monthly average advantage (forward mode)
 ![Monthly advantage](charts/06_monthly.png)
 
+### Reverse-direction reality check (USD)
+Orange = the naive `1/forward` estimate (what the old conclusion used); navy =
+the **real** reverse query. The estimate sits systematically too high, so it
+overstates Visa's case.
+
+![USD reverse check](charts/07_USD_reverse_check.png)
+
+### Who actually wins for an INR card spent abroad (real reverse query)
+![Reverse win rate](charts/08_reverse_winrate.png)
+
 The EUR/INR equivalents are in [`charts/`](charts/):
-`01_EUR_rates.png`, `02_EUR_gap.png`, `03_EUR_hist.png`, `04_EUR_markup.png`.
+`01_EUR_rates.png`, `02_EUR_gap.png`, `03_EUR_hist.png`, `04_EUR_markup.png`,
+`07_EUR_reverse_check.png`.
 
 ---
 
-## The one subtlety that flips the answer
+## The direction trap: why you must query the real direction
 
-A currency conversion is zero-sum, so **direction matters**:
+A card conversion looks like it should be symmetric, so it is tempting to take
+the forward rate (spend INR, billed USD) and just invert it (`1 / rate`) to get
+the reverse (spend USD, billed INR). **This is wrong, and I verified it against
+live data.**
 
-- **Indian INR card, spending USD/EUR abroad (billed in INR):** you want the
-  network that charges *fewer rupees per dollar/euro*. **Visa wins** (264/365
-  USD, 245/365 EUR). This is the case this project optimises for.
-- **USD/EUR card, spending in India (billed in foreign currency):** the maths
-  inverts and **Mastercard wins** by the same margin, because Mastercard sits
-  closer to the ECB mid-market rate.
+Each network applies a **directional spread** (a bid/ask), so the real reverse
+rate is not `1 / forward`. I re-collected a full year in the real reverse
+direction (`collect_reverse.py`, transaction in USD/EUR, billed in INR) and
+compared:
 
-So "who is better" is not universal, it depends on which way you convert. For
-the common Indian traveller/shopper scenario, the answer is **Visa**.
+- The real reverse rate is worse than the naive inverse by, on average,
+  **+0.38% (Visa) / +0.18% (Mastercard) for USD**, and
+  **+1.00% (Visa) / +0.79% (Mastercard) for EUR**.
+- Because Visa's reverse spread is larger, its apparent forward "win" does
+  **not** carry over. The predicted winner (inverted) disagrees with the real
+  winner on **124/365 days (USD)** and **135/365 days (EUR)**, about 1 day in 3.
+
+Concrete example, 2026-07-01, USD:
+
+| Direction | Visa | Mastercard | Cheaper |
+| --- | --- | --- | --- |
+| Forward: spend 100,000 INR, billed USD | 1,058.03 USD | 1,050.25 USD | Mastercard |
+| Reverse: spend 1,000 USD, billed INR | 94,765 INR | 95,290 INR | Visa |
+
+On this particular day the winner genuinely flips between directions; the point
+is that you cannot infer the reverse from the forward, you have to query it. And
+across the whole year, the *counts* do not mirror: Mastercard leads in both.
+
+Corrected conclusion after measuring both directions directly:
+
+- **USD/EUR card spending in India (billed foreign):** Mastercard cheaper on
+  264/365 (USD) and 245/365 (EUR) days.
+- **INR card spending abroad (billed INR):** Mastercard cheaper on 213/365
+  (USD) and 223/365 (EUR) days.
+
+So **Mastercard is the better default in both directions** over this year, by a
+small margin, because it prices closer to the interbank mid-rate. The earlier
+"Visa wins for the traveller" claim was an artifact of inverting instead of
+measuring, and has been retracted.
 
 ---
 
@@ -137,27 +200,31 @@ Example output:
 ### USD/INR
 
   This week (last 7 days):
-  Winner: Visa        |  Visa avg cheaper by 0.345%
-    days won: Visa 7 vs Mastercard 0 (of 7)  [2026-06-29 -> 2026-07-05]
+  Winner: Visa        |  Visa avg cheaper by 0.083%
+    days won: Visa 4 vs Mastercard 3 (of 7)  [2026-06-29 -> 2026-07-05]
 
   This month (last 30 days):
-  Winner: Visa        |  Visa avg cheaper by 0.130%
-    days won: Visa 19 vs Mastercard 11 (of 30)
+  Winner: Mastercard  |  Visa avg pricier by 0.157%
+    days won: Visa 9 vs Mastercard 21 (of 30)
 
   This year (last 365 days):
-  Winner: Visa        |  Visa avg cheaper by 0.141%
-    days won: Visa 264 vs Mastercard 101 (of 365)
+  Winner: Mastercard  |  Visa avg pricier by 0.058%
+    days won: Visa 152 vs Mastercard 213 (of 365)
 ```
 
-`compare.py` reads the tracked history in `rates.csv`, so "this week/month/year"
-is always relative to the latest date in your data. Re-run `collect.py` to bring
-it up to date.
+`compare.py` reads the **real reverse-direction** history in `rates_reverse.csv`
+(spend foreign, billed INR), so "this week/month/year" is always relative to the
+latest date in your data. Re-run `collect_reverse.py` to bring it up to date.
 
 ### 2. Refresh the data (fetch a fresh year)
 
 ```bash
-uv run collect.py     # ~365 days x 2 pairs x 2 networks -> rates.csv (~10 min)
+uv run collect.py           # forward: transaction INR, billed foreign -> rates.csv
+uv run collect_reverse.py   # reverse: transaction foreign, billed INR -> rates_reverse.csv
 ```
+
+Each run is ~365 days x 2 pairs x 2 networks (~10 min). You need the reverse file
+for `compare.py` and for the traveller verdict.
 
 To track **different currencies** (this tool is currency-agnostic), edit the
 `CURRENCIES` list near the top of `collect.py`, for example:
@@ -173,13 +240,15 @@ different home currency.
 ### 3. Regenerate the EDA charts and stats
 
 ```bash
-uv run eda.py         # writes charts/*.png and summary.json
+uv run eda.py             # forward charts (01-06) + summary.json
+uv run eda_reverse.py     # reverse-check charts (07-08)
 ```
 
 ### 4. Quick textual analysis
 
 ```bash
-uv run analyze.py     # prints the full head-to-head breakdown to the terminal
+uv run analyze.py         # forward head-to-head breakdown
+uv run analyze_reverse.py # reverse-direction validation + how wrong inversion was
 ```
 
 ---
@@ -188,11 +257,15 @@ uv run analyze.py     # prints the full head-to-head breakdown to the terminal
 
 | File | What it does |
 | --- | --- |
-| `collect.py` | Fetches daily Visa and Mastercard INR rates (USD, EUR) for the trailing year via curl_cffi and writes `rates.csv`. |
-| `compare.py` | CLI: who is cheaper this week / month / year, and by what %. |
-| `eda.py` | Generates all charts in `charts/` and a machine-readable `summary.json`. |
-| `analyze.py` | Prints the full statistical head-to-head (win rates, gaps, markups). |
-| `rates.csv` | The tracked dataset: one row per day per pair, both networks. |
+| `collect.py` | Forward fetch (transaction INR, billed foreign) -> `rates.csv`. |
+| `collect_reverse.py` | Reverse fetch (transaction foreign, billed INR) -> `rates_reverse.csv`. This is the direction that matters for a traveller. |
+| `compare.py` | CLI: who is cheaper this week / month / year, and by what %. Uses `rates_reverse.csv`. |
+| `eda.py` | Forward charts (`charts/01`-`06`) + `summary.json`. |
+| `eda_reverse.py` | Reverse-check charts (`charts/07`-`08`). |
+| `analyze.py` | Forward statistical head-to-head. |
+| `analyze_reverse.py` | Reverse-direction validation and how far the naive inversion was off. |
+| `rates.csv` | Forward dataset: one row per day per pair, both networks. |
+| `rates_reverse.csv` | Reverse dataset: one row per day per pair, both networks. |
 | `summary.json` | Key EDA statistics as JSON. |
 | `charts/` | All generated PNG charts. |
 
@@ -207,6 +280,10 @@ uv run analyze.py     # prints the full head-to-head breakdown to the terminal
 | `visa_bill_amt` / `mc_bill_amt` | Foreign amount billed for a 100,000 INR transaction. |
 | `visa_benchmark` | ECB mid-market rate for that date (from Visa's response). |
 | `visa_markup` | Visa's markup over the ECB benchmark (as fraction). |
+
+`rates_reverse.csv` mirrors this for the reverse direction with columns
+`visa_inr_per_unit` / `mc_inr_per_unit` (INR per 1 foreign unit, queried
+directly) and `visa_bill_inr` / `mc_bill_inr` (INR billed for 1,000 units).
 
 ---
 
@@ -228,6 +305,12 @@ uv run analyze.py     # prints the full head-to-head breakdown to the terminal
 
 - These are **network base rates**. Your final cost also includes your issuing
   bank's markup and any forex/markup fee, which this project does not model.
+- **Direction is not symmetric.** Each network charges a directional spread, so
+  never infer the reverse rate by inverting the forward one; query the direction
+  you actually use (that is why there are separate forward and reverse datasets).
+- The margin between the two networks is small (well under 0.2% on a typical
+  day) and swings both ways, so for a single trip the choice barely moves the
+  needle. Over many transactions Mastercard has the slight, consistent edge.
 - The ECB "markup" column is timing-noisy (the benchmark fixing and the network
   rate are not stamped at the same instant), so the headline verdict is based on
   the direct network-vs-network comparison, which is apples-to-apples.

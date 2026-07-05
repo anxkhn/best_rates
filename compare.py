@@ -1,9 +1,14 @@
 """
 compare.py - who gives the better card FX rate, this week / month / year?
 
-Reads the tracked history in rates.csv and reports, for each currency pair,
-which network (Visa or Mastercard) an Indian INR-card holder spending abroad
-should prefer, and the average percentage difference.
+Reads the tracked history in rates_reverse.csv (the REAL reverse-direction
+data: you spend foreign, you are billed in INR) and reports, for each currency
+pair, which network (Visa or Mastercard) an Indian INR-card holder spending
+abroad should prefer, and the average percentage difference.
+
+Note: we deliberately use rates_reverse.csv, not an inverted forward rate,
+because each network charges a directional spread (see README, "the direction
+trap").
 
 Usage:
     uv run compare.py                # all windows, both pairs
@@ -16,11 +21,12 @@ import statistics as st
 from datetime import datetime, timedelta
 
 WINDOWS = {"week": 7, "month": 30, "year": 365}
+DATA = "rates_reverse.csv"
 
 
 def load(pair):
     out = []
-    with open("rates.csv") as fh:
+    with open(DATA) as fh:
         for r in csv.DictReader(fh):
             if r["pair"] != pair or not r["visa_inr_per_unit"]:
                 continue
