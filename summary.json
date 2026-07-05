@@ -1,0 +1,36 @@
+{
+  "USD/INR": {
+    "pair": "USD/INR",
+    "days": 365,
+    "start": "2025-07-06",
+    "end": "2026-07-05",
+    "visa_cheaper_days": 264,
+    "mc_cheaper_days": 101,
+    "visa_win_pct": 72.3,
+    "mean_visa_adv_pct": 0.1406,
+    "median_visa_adv_pct": 0.1148,
+    "best_day_visa_adv_pct": 1.2391,
+    "worst_day_visa_adv_pct": -1.3639,
+    "mean_abs_gap_pct": 0.2599,
+    "max_abs_gap_pct": 1.3456,
+    "visa_mean_markup_pct": 0.2291,
+    "mc_mean_markup_pct": 0.0878
+  },
+  "EUR/INR": {
+    "pair": "EUR/INR",
+    "days": 365,
+    "start": "2025-07-06",
+    "end": "2026-07-05",
+    "visa_cheaper_days": 245,
+    "mc_cheaper_days": 120,
+    "visa_win_pct": 67.1,
+    "mean_visa_adv_pct": 0.1381,
+    "median_visa_adv_pct": 0.1039,
+    "best_day_visa_adv_pct": 1.8308,
+    "worst_day_visa_adv_pct": -1.3641,
+    "mean_abs_gap_pct": 0.3051,
+    "max_abs_gap_pct": 1.8649,
+    "visa_mean_markup_pct": 0.5067,
+    "mc_mean_markup_pct": 0.3674
+  }
+}
