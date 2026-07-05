@@ -1,7 +1,12 @@
 """
-Exploratory Data Analysis + chart generation for Visa vs Mastercard
-INR conversion rates. Reads rates.csv, writes charts to charts/ and a
-machine-readable summary to summary.json.
+eda.py - direction-correct charts + summary.json for Visa vs Mastercard.
+
+Uses REAL data for each direction (never inverts one to fake the other):
+  forward  -> rates.csv          (foreign card spent in India, billed foreign)
+  reverse  -> rates_reverse.csv  (INR card spent abroad, billed INR)
+
+"MC advantage" = % by which Mastercard is cheaper than Visa that day
+(positive = Mastercard cheaper).
 """
 import csv
 import json
@@ -14,220 +19,142 @@ matplotlib.use("Agg")
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 
-CHART_DIR = "charts"
-os.makedirs(CHART_DIR, exist_ok=True)
-
-# ---- theme -----------------------------------------------------------------
-VISA = "#1a1f71"      # Visa blue
-MC = "#eb001b"        # Mastercard red
-MC2 = "#f79e1b"       # Mastercard orange (accent)
-BENCH = "#6b7280"     # grey
-BG = "#ffffff"
-GRID = "#e5e7eb"
-INK = "#111827"
-
+os.makedirs("charts", exist_ok=True)
+VISA, MC, MC2, INK, GRID, BG = "#1a1f71", "#eb001b", "#f79e1b", "#111827", "#e5e7eb", "#ffffff"
 plt.rcParams.update({
-    "figure.facecolor": BG,
-    "axes.facecolor": BG,
-    "axes.edgecolor": GRID,
-    "axes.labelcolor": INK,
-    "axes.titlecolor": INK,
-    "text.color": INK,
-    "xtick.color": INK,
-    "ytick.color": INK,
-    "axes.grid": True,
-    "grid.color": GRID,
-    "grid.linewidth": 0.8,
-    "font.size": 11,
-    "axes.titlesize": 14,
-    "axes.titleweight": "bold",
-    "figure.dpi": 130,
-    "savefig.bbox": "tight",
-    "savefig.facecolor": BG,
+    "figure.facecolor": BG, "axes.facecolor": BG, "axes.edgecolor": GRID,
+    "axes.grid": True, "grid.color": GRID, "grid.linewidth": 0.8,
+    "font.size": 11, "axes.titlesize": 13, "axes.titleweight": "bold",
+    "figure.dpi": 130, "savefig.bbox": "tight", "savefig.facecolor": BG,
 })
+PAIRS = ["USD/INR", "EUR/INR"]
 
 
-def f(x):
+def fnum(x):
     return float(x) if x not in (None, "") else None
 
 
-def load(pair):
+def load(path, pair, cols):
     rows = []
-    with open("rates.csv") as fh:
-        for r in csv.DictReader(fh):
-            if r["pair"] != pair:
-                continue
-            r = dict(r)
-            r["d"] = datetime.strptime(r["date"], "%Y-%m-%d")
-            for k in ("visa_fx_per_inr", "mc_fx_per_inr", "visa_inr_per_unit",
-                      "mc_inr_per_unit", "visa_benchmark", "visa_bill_amt",
-                      "mc_bill_amt"):
-                r[k] = f(r[k])
-            r["gap_pct"] = (r["visa_fx_per_inr"] - r["mc_fx_per_inr"]) / r["mc_fx_per_inr"] * 100
-            # savings for INR-card holder spending abroad (per 1 unit foreign)
-            r["visa_saves_inr"] = r["mc_inr_per_unit"] - r["visa_inr_per_unit"]
-            r["visa_saves_pct"] = r["visa_saves_inr"] / r["mc_inr_per_unit"] * 100
-            r["v_markup"] = (r["visa_fx_per_inr"] - r["visa_benchmark"]) / r["visa_benchmark"] * 100
-            r["m_markup"] = (r["mc_fx_per_inr"] - r["visa_benchmark"]) / r["visa_benchmark"] * 100
-            rows.append(r)
+    for r in csv.DictReader(open(path)):
+        if r["pair"] != pair or any(r[c] in (None, "") for c in cols):
+            continue
+        rows.append({"date": r["date"], "d": datetime.strptime(r["date"], "%Y-%m-%d"),
+                     **{c: fnum(r[c]) for c in cols}})
     rows.sort(key=lambda x: x["d"])
     return rows
 
 
-def _fmt_dates(ax):
-    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
+def _dates(ax):
+    ax.xaxis.set_major_locator(mdates.MonthLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b'%y"))
-    for lb in ax.get_xticklabels():
-        lb.set_rotation(0)
 
 
-def chart_rates(pair, rows):
-    cur = pair[:3]
-    dates = [r["d"] for r in rows]
-    fig, ax = plt.subplots(figsize=(11, 5))
-    ax.plot(dates, [r["visa_inr_per_unit"] for r in rows], color=VISA, lw=2, label="Visa")
-    ax.plot(dates, [r["mc_inr_per_unit"] for r in rows], color=MC, lw=2, label="Mastercard")
-    ax.set_title(f"{cur} to INR - daily rate you are billed (INR per 1 {cur})")
-    ax.set_ylabel(f"INR per 1 {cur}")
-    ax.legend(frameon=False, loc="upper left")
-    _fmt_dates(ax)
-    p = f"{CHART_DIR}/01_{cur}_rates.png"
-    fig.savefig(p); plt.close(fig)
-    return p
-
-
-def chart_gap(pair, rows):
-    cur = pair[:3]
-    dates = [r["d"] for r in rows]
-    gaps = [r["visa_saves_pct"] for r in rows]  # + => Visa cheaper for INR card abroad
-    fig, ax = plt.subplots(figsize=(11, 4.5))
-    ax.fill_between(dates, gaps, 0, where=[g >= 0 for g in gaps], color=VISA, alpha=0.55, interpolate=True, label="Visa cheaper")
-    ax.fill_between(dates, gaps, 0, where=[g < 0 for g in gaps], color=MC, alpha=0.55, interpolate=True, label="Mastercard cheaper")
+def gap_chart(cur, rows, advs, title, path):
+    dd = [r["d"] for r in rows]
+    fig, ax = plt.subplots(figsize=(11, 4.3))
+    ax.fill_between(dd, advs, 0, where=[a >= 0 for a in advs], color=MC, alpha=0.55,
+                    interpolate=True, label="Mastercard cheaper")
+    ax.fill_between(dd, advs, 0, where=[a < 0 for a in advs], color=VISA, alpha=0.55,
+                    interpolate=True, label="Visa cheaper")
     ax.axhline(0, color=INK, lw=0.8)
-    ax.axhline(st.mean(gaps), color=MC2, lw=1.4, ls="--", label=f"mean {st.mean(gaps):+.3f}%")
-    ax.set_title(f"{cur}: how much cheaper Visa is vs Mastercard (INR card spending abroad)")
-    ax.set_ylabel("Visa advantage (%)")
+    ax.axhline(st.mean(advs), color=MC2, lw=1.4, ls="--", label=f"mean {st.mean(advs):+.3f}%")
+    ax.set_title(title)
+    ax.set_ylabel("Mastercard advantage (%)")
     ax.legend(frameon=False, ncol=3, loc="upper left")
-    _fmt_dates(ax)
-    p = f"{CHART_DIR}/02_{cur}_gap.png"
-    fig.savefig(p); plt.close(fig)
-    return p
-
-
-def chart_hist(pair, rows):
-    cur = pair[:3]
-    gaps = [r["visa_saves_pct"] for r in rows]
-    fig, ax = plt.subplots(figsize=(8, 4.5))
-    ax.hist(gaps, bins=40, color=VISA, alpha=0.85, edgecolor="white")
-    ax.axvline(0, color=INK, lw=1)
-    ax.axvline(st.mean(gaps), color=MC, lw=1.6, ls="--", label=f"mean {st.mean(gaps):+.3f}%")
-    ax.axvline(st.median(gaps), color=MC2, lw=1.6, ls=":", label=f"median {st.median(gaps):+.3f}%")
-    ax.set_title(f"{cur}: distribution of daily Visa advantage")
-    ax.set_xlabel("Visa cheaper by (%)  |  negative = Mastercard cheaper")
-    ax.set_ylabel("days")
-    ax.legend(frameon=False)
-    p = f"{CHART_DIR}/03_{cur}_hist.png"
-    fig.savefig(p); plt.close(fig)
-    return p
-
-
-def chart_markup(pair, rows):
-    cur = pair[:3]
-    dates = [r["d"] for r in rows]
-    fig, ax = plt.subplots(figsize=(11, 4.5))
-    ax.plot(dates, [r["v_markup"] for r in rows], color=VISA, lw=1.6, label=f"Visa markup (avg {st.mean([r['v_markup'] for r in rows]):.3f}%)")
-    ax.plot(dates, [r["m_markup"] for r in rows], color=MC, lw=1.6, label=f"Mastercard markup (avg {st.mean([r['m_markup'] for r in rows]):.3f}%)")
-    ax.axhline(0, color=BENCH, lw=1, ls="--", label="ECB mid-market")
-    ax.set_title(f"{cur}: network rate vs ECB mid-market (markup %)")
-    ax.set_ylabel("markup over ECB mid (%)")
-    ax.legend(frameon=False, ncol=3, loc="upper left")
-    _fmt_dates(ax)
-    p = f"{CHART_DIR}/04_{cur}_markup.png"
-    fig.savefig(p); plt.close(fig)
-    return p
-
-
-def chart_winrate(pairs_rows):
-    fig, ax = plt.subplots(figsize=(8, 4.5))
-    labels = list(pairs_rows.keys())
-    visa = [sum(1 for r in rows if r["visa_saves_pct"] > 0) for rows in pairs_rows.values()]
-    mc = [sum(1 for r in rows if r["visa_saves_pct"] < 0) for rows in pairs_rows.values()]
-    x = range(len(labels))
-    ax.bar([i - 0.2 for i in x], visa, width=0.4, color=VISA, label="Visa cheaper")
-    ax.bar([i + 0.2 for i in x], mc, width=0.4, color=MC, label="Mastercard cheaper")
-    for i, (v, m) in enumerate(zip(visa, mc)):
-        ax.text(i - 0.2, v + 3, str(v), ha="center", fontweight="bold")
-        ax.text(i + 0.2, m + 3, str(m), ha="center", fontweight="bold")
-    ax.set_xticks(list(x)); ax.set_xticklabels(labels)
-    ax.set_title("Who gives the better rate more often (days won, INR card abroad)")
-    ax.set_ylabel("days won (of 365)")
-    ax.set_ylim(0, max(visa + mc) * 1.18)
-    ax.legend(frameon=False, loc="upper center", ncol=2)
-    p = f"{CHART_DIR}/05_winrate.png"
-    fig.savefig(p); plt.close(fig)
-    return p
-
-
-def chart_monthly(pairs_rows):
-    fig, ax = plt.subplots(figsize=(11, 4.5))
-    for pair, rows in pairs_rows.items():
-        cur = pair[:3]
-        buckets = {}
-        for r in rows:
-            key = r["d"].strftime("%Y-%m")
-            buckets.setdefault(key, []).append(r["visa_saves_pct"])
-        keys = sorted(buckets)
-        vals = [st.mean(buckets[k]) for k in keys]
-        ax.plot(keys, vals, marker="o", lw=2,
-                color=VISA if cur == "USD" else MC, label=cur)
-    ax.axhline(0, color=INK, lw=0.8)
-    ax.set_title("Monthly average Visa advantage (%)")
-    ax.set_ylabel("Visa cheaper by (%)")
-    ax.tick_params(axis="x", rotation=45)
-    ax.legend(frameon=False)
-    p = f"{CHART_DIR}/06_monthly.png"
-    fig.savefig(p); plt.close(fig)
-    return p
-
-
-def stats(pair, rows):
-    gaps = [r["visa_saves_pct"] for r in rows]
-    absg = [abs(r["gap_pct"]) for r in rows]
-    return {
-        "pair": pair,
-        "days": len(rows),
-        "start": rows[0]["date"],
-        "end": rows[-1]["date"],
-        "visa_cheaper_days": sum(1 for g in gaps if g > 0),
-        "mc_cheaper_days": sum(1 for g in gaps if g < 0),
-        "visa_win_pct": round(sum(1 for g in gaps if g > 0) / len(gaps) * 100, 1),
-        "mean_visa_adv_pct": round(st.mean(gaps), 4),
-        "median_visa_adv_pct": round(st.median(gaps), 4),
-        "best_day_visa_adv_pct": round(max(gaps), 4),
-        "worst_day_visa_adv_pct": round(min(gaps), 4),
-        "mean_abs_gap_pct": round(st.mean(absg), 4),
-        "max_abs_gap_pct": round(max(absg), 4),
-        "visa_mean_markup_pct": round(st.mean([r["v_markup"] for r in rows]), 4),
-        "mc_mean_markup_pct": round(st.mean([r["m_markup"] for r in rows]), 4),
-    }
+    _dates(ax)
+    fig.savefig(path); plt.close(fig)
 
 
 def main():
-    pairs = ["USD/INR", "EUR/INR"]
-    pr = {p: load(p) for p in pairs}
-    charts = []
-    for p in pairs:
-        charts += [chart_rates(p, pr[p]), chart_gap(p, pr[p]),
-                   chart_hist(p, pr[p]), chart_markup(p, pr[p])]
-    charts.append(chart_winrate(pr))
-    charts.append(chart_monthly(pr))
-    summary = {p: stats(p, pr[p]) for p in pairs}
+    summary = {}
+    winrate = {}
+    for pair in PAIRS:
+        cur = pair[:3]
+        fwd = load("rates.csv", pair, ["visa_fx_per_inr", "mc_fx_per_inr"])
+        rev = load("rates_reverse.csv", pair, ["visa_inr_per_unit", "mc_inr_per_unit"])
+        fwd_adv = [(r["visa_fx_per_inr"] - r["mc_fx_per_inr"]) / r["visa_fx_per_inr"] * 100 for r in fwd]
+        rev_adv = [(r["visa_inr_per_unit"] - r["mc_inr_per_unit"]) / r["visa_inr_per_unit"] * 100 for r in rev]
+
+        # 1) rate trend (traveller view: INR per 1 unit foreign, real reverse data)
+        fig, ax = plt.subplots(figsize=(11, 4.6))
+        ax.plot([r["d"] for r in rev], [r["visa_inr_per_unit"] for r in rev], color=VISA, lw=2, label="Visa")
+        ax.plot([r["d"] for r in rev], [r["mc_inr_per_unit"] for r in rev], color=MC, lw=2, label="Mastercard")
+        ax.set_title(f"{cur} to INR: rate billed to an INR card spent abroad (INR per 1 {cur})")
+        ax.set_ylabel(f"INR per 1 {cur}")
+        ax.legend(frameon=False, loc="upper left")
+        _dates(ax)
+        fig.savefig(f"charts/{cur}_01_rate.png"); plt.close(fig)
+
+        # 2) forward gap, 3) reverse gap
+        gap_chart(cur, fwd, fwd_adv,
+                  f"{cur} FORWARD: foreign card spent in India (billed {cur})",
+                  f"charts/{cur}_02_forward_gap.png")
+        gap_chart(cur, rev, rev_adv,
+                  f"{cur} REVERSE: INR card spent abroad (billed INR)",
+                  f"charts/{cur}_03_reverse_gap.png")
+
+        # 4) reverse reality check: naive 1/forward estimate vs real reverse
+        by_date = {r["date"]: r for r in fwd}
+        dd, est, real = [], [], []
+        for r in rev:
+            fr = by_date.get(r["date"])
+            if not fr:
+                continue
+            dd.append(r["d"])
+            # Visa advantage in reverse: real vs the naive inverted-forward estimate
+            inv_v, inv_m = 1.0 / fr["visa_fx_per_inr"], 1.0 / fr["mc_fx_per_inr"]
+            est.append((inv_v - inv_m) / inv_v * 100)        # MC advantage, inverted estimate
+            real.append((r["visa_inr_per_unit"] - r["mc_inr_per_unit"]) / r["visa_inr_per_unit"] * 100)
+        fig, ax = plt.subplots(figsize=(11, 4.3))
+        ax.plot(dd, est, color=MC2, lw=1.5, label=f"naive 1/forward estimate (mean {st.mean(est):+.3f}%)")
+        ax.plot(dd, real, color=VISA, lw=1.7, label=f"REAL reverse query (mean {st.mean(real):+.3f}%)")
+        ax.axhline(0, color=INK, lw=0.8)
+        ax.set_title(f"{cur}: why you cannot invert the forward rate (MC advantage, reverse)")
+        ax.set_ylabel("Mastercard advantage (%)")
+        ax.legend(frameon=False, loc="upper left")
+        _dates(ax)
+        fig.savefig(f"charts/{cur}_04_reverse_check.png"); plt.close(fig)
+
+        winrate[pair] = {
+            "fwd_mc": sum(1 for a in fwd_adv if a > 0), "fwd_visa": sum(1 for a in fwd_adv if a < 0),
+            "rev_mc": sum(1 for a in rev_adv if a > 0), "rev_visa": sum(1 for a in rev_adv if a < 0),
+        }
+        summary[pair] = {
+            "days": len(rev), "window": f"{rev[0]['date']} to {rev[-1]['date']}",
+            "forward_mc_win_pct": round(winrate[pair]["fwd_mc"] / len(fwd) * 100, 1),
+            "forward_mc_adv_mean_pct": round(st.mean(fwd_adv), 4),
+            "reverse_mc_win_pct": round(winrate[pair]["rev_mc"] / len(rev) * 100, 1),
+            "reverse_mc_adv_mean_pct": round(st.mean(rev_adv), 4),
+            "reverse_mc_adv_min_pct": round(min(rev_adv), 4),
+            "reverse_mc_adv_max_pct": round(max(rev_adv), 4),
+        }
+
+    # summary winrate grouped bars (forward + reverse)
+    fig, ax = plt.subplots(figsize=(9, 4.8))
+    groups = []
+    for pair in PAIRS:
+        groups.append((f"{pair[:3]}\nforward", winrate[pair]["fwd_visa"], winrate[pair]["fwd_mc"]))
+        groups.append((f"{pair[:3]}\nreverse", winrate[pair]["rev_visa"], winrate[pair]["rev_mc"]))
+    labels = [g[0] for g in groups]
+    v = [g[1] for g in groups]
+    m = [g[2] for g in groups]
+    x = range(len(groups))
+    ax.bar([i - 0.2 for i in x], v, 0.4, color=VISA, label="Visa cheaper")
+    ax.bar([i + 0.2 for i in x], m, 0.4, color=MC, label="Mastercard cheaper")
+    for i, (vv, mm) in enumerate(zip(v, m)):
+        ax.text(i - 0.2, vv + 4, str(vv), ha="center", fontweight="bold", fontsize=9)
+        ax.text(i + 0.2, mm + 4, str(mm), ha="center", fontweight="bold", fontsize=9)
+    ax.set_xticks(list(x)); ax.set_xticklabels(labels)
+    ax.set_ylim(0, 365 * 0.85)
+    ax.set_title("Days won by each network, both directions (of 365)")
+    ax.set_ylabel("days won")
+    ax.legend(frameon=False, loc="upper center", ncol=2)
+    fig.savefig("charts/00_winrate.png"); plt.close(fig)
+
     with open("summary.json", "w") as fh:
         json.dump(summary, fh, indent=2)
-    print("charts written:")
-    for c in charts:
-        print("  ", c)
-    print("\nsummary.json:")
+    print("charts written to charts/ ; summary.json:")
     print(json.dumps(summary, indent=2))
 
 

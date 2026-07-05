@@ -85,50 +85,36 @@ and forex fee dominate the total cost, not the network choice.
 
 ## Charts
 
-> Charts 01-06 below use the **forward** dataset (`rates.csv`): transaction in
-> INR, billed in USD/EUR. "Visa advantage" here is derived by inverting the
-> rate; charts 07-08 show why that inversion is misleading and what the **real**
-> reverse direction looks like.
+Every chart uses the **real** data for its direction (nothing is inverted). "MC
+advantage" = the percentage by which Mastercard is cheaper than Visa that day
+(above 0 = Mastercard cheaper, below 0 = Visa cheaper).
 
-### USD/INR rate over the year
-Visa and Mastercard track each other closely; the difference lives in the tiny
-daily gap between the two lines.
+### Who wins, both directions
+Mastercard leads all four bars: forward and reverse, USD and EUR.
 
-![USD to INR rates](charts/01_USD_rates.png)
+![Win rate, both directions](charts/00_winrate.png)
 
-### How much cheaper Visa looks in the forward mode (USD)
-Blue = Visa cheaper, red = Mastercard cheaper, in the forward calculator mode.
+### USD rate billed to an INR card spent abroad
+Visa and Mastercard track each other closely; the edge lives in the tiny daily
+gap between the lines.
 
-![USD advantage](charts/02_USD_gap.png)
+![USD rate](charts/USD_01_rate.png)
 
-### Distribution of the daily advantage (USD, forward)
-![USD histogram](charts/03_USD_hist.png)
+### USD forward: foreign USD card spent in India (billed USD)
+![USD forward gap](charts/USD_02_forward_gap.png)
 
-### Markup over the ECB mid-market (USD)
-Both networks price above the ECB mid; Mastercard usually sits closer to it,
-which is why Mastercard ends up cheaper in **both** real directions.
+### USD reverse: INR card spent abroad (billed INR)
+![USD reverse gap](charts/USD_03_reverse_gap.png)
 
-![USD markup](charts/04_USD_markup.png)
+### USD reverse reality check: why you cannot invert the forward rate
+Orange = the naive `1/forward` estimate (what the old, wrong conclusion used);
+navy = the **real** reverse query. The estimate sits a whole directional spread
+below reality, so it wrongly predicts Visa as the reverse winner.
 
-### Who wins more often (forward mode)
-![Win rate](charts/05_winrate.png)
+![USD reverse check](charts/USD_04_reverse_check.png)
 
-### Monthly average advantage (forward mode)
-![Monthly advantage](charts/06_monthly.png)
-
-### Reverse-direction reality check (USD)
-Orange = the naive `1/forward` estimate (what the old conclusion used); navy =
-the **real** reverse query. The estimate sits systematically too high, so it
-overstates Visa's case.
-
-![USD reverse check](charts/07_USD_reverse_check.png)
-
-### Who actually wins for an INR card spent abroad (real reverse query)
-![Reverse win rate](charts/08_reverse_winrate.png)
-
-The EUR/INR equivalents are in [`charts/`](charts/):
-`01_EUR_rates.png`, `02_EUR_gap.png`, `03_EUR_hist.png`, `04_EUR_markup.png`,
-`07_EUR_reverse_check.png`.
+The EUR/INR equivalents are in [`charts/`](charts/): `EUR_01_rate.png`,
+`EUR_02_forward_gap.png`, `EUR_03_reverse_gap.png`, `EUR_04_reverse_check.png`.
 
 ---
 
@@ -240,15 +226,13 @@ different home currency.
 ### 3. Regenerate the EDA charts and stats
 
 ```bash
-uv run eda.py             # forward charts (01-06) + summary.json
-uv run eda_reverse.py     # reverse-check charts (07-08)
+uv run eda.py             # all direction-correct charts + summary.json
 ```
 
 ### 4. Quick textual analysis
 
 ```bash
-uv run analyze.py         # forward head-to-head breakdown
-uv run analyze_reverse.py # reverse-direction validation + how wrong inversion was
+uv run analyze.py         # both directions head-to-head + directional spread
 ```
 
 ---
@@ -260,10 +244,8 @@ uv run analyze_reverse.py # reverse-direction validation + how wrong inversion w
 | `collect.py` | Forward fetch (transaction INR, billed foreign) -> `rates.csv`. |
 | `collect_reverse.py` | Reverse fetch (transaction foreign, billed INR) -> `rates_reverse.csv`. This is the direction that matters for a traveller. |
 | `compare.py` | CLI: who is cheaper this week / month / year, and by what %. Uses `rates_reverse.csv`. |
-| `eda.py` | Forward charts (`charts/01`-`06`) + `summary.json`. |
-| `eda_reverse.py` | Reverse-check charts (`charts/07`-`08`). |
-| `analyze.py` | Forward statistical head-to-head. |
-| `analyze_reverse.py` | Reverse-direction validation and how far the naive inversion was off. |
+| `analyze.py` | Both directions head-to-head (win rates, gaps) plus the directional spread, from real data. |
+| `eda.py` | All direction-correct charts in `charts/` and `summary.json`. |
 | `rates.csv` | Forward dataset: one row per day per pair, both networks. |
 | `rates_reverse.csv` | Reverse dataset: one row per day per pair, both networks. |
 | `summary.json` | Key EDA statistics as JSON. |
