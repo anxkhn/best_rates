@@ -1,14 +1,24 @@
-# Best Rates: Visa vs Mastercard on INR Card Spends
+# Best Rates: Visa vs Mastercard Currency Conversion
+
+A small project to see **which card network gives you better currency
+conversion rates before your next international trip**.
 
 Every time you swipe an international card, the **card network** (Visa or
 Mastercard), not your bank, sets the base exchange rate that converts the
 foreign amount into your billing currency. Visa and Mastercard publish these
-daily rates, but they are buried inside on-page calculators and they are only
-kept for the trailing ~365 days.
+daily rates, but they are buried inside on-page calculators and are only kept
+for the trailing ~365 days. This project tracks those rates every day for a
+full year, does a proper exploratory data analysis (EDA), and gives you a small
+CLI to check who is cheaper this week, month, or year.
 
-This project **tracks those rates every day for a full year**, does a proper
-exploratory data analysis (EDA), and answers one practical question for an
-Indian cardholder:
+The tooling is **currency-agnostic**: point it at any currency pair the Visa
+and Mastercard calculators support (USD, EUR, GBP, AED, JPY, and so on).
+
+### The example in this repo
+
+As a worked example I focus on my own use case, an **Indian cardholder (INR
+card) spending abroad in USD and EUR**, i.e. someone based in India travelling
+to the US or the Eurozone:
 
 > If I spend in **USD** or **EUR** abroad on an **INR** card, whose rate is
 > better, Visa or Mastercard, and by how much?
@@ -16,6 +26,9 @@ Indian cardholder:
 **TL;DR: over the last 365 days, Visa gave the better rate on ~2 of every 3
 days for both USD and EUR, by ~0.14% on average (up to ~1.8% on the best day).
 For an Indian INR card spent abroad, Visa wins.**
+
+Swap the currencies in `collect.py` to run the same analysis for your own
+country and trip.
 
 ---
 
@@ -146,6 +159,17 @@ it up to date.
 uv run collect.py     # ~365 days x 2 pairs x 2 networks -> rates.csv (~10 min)
 ```
 
+To track **different currencies** (this tool is currency-agnostic), edit the
+`CURRENCIES` list near the top of `collect.py`, for example:
+
+```python
+CURRENCIES = ["USD", "EUR", "GBP", "AED"]   # any codes the calculators support
+```
+
+then re-run `collect.py`, `eda.py`, and `compare.py`. The base/home currency is
+INR here; change `toCurr` / `transaction_currency` in `collect.py` to analyse a
+different home currency.
+
 ### 3. Regenerate the EDA charts and stats
 
 ```bash
@@ -209,6 +233,16 @@ uv run analyze.py     # prints the full head-to-head breakdown to the terminal
   the direct network-vs-network comparison, which is apples-to-apples.
 - Rates on weekends/holidays carry over the last business-day value.
 
+## Disclaimer
+
+This project is **not affiliated with, endorsed by, or connected to Visa or
+Mastercard** in any way. "Visa" and "Mastercard" are trademarks of their
+respective owners. It only reads the same public rate calculators anyone can
+open in a browser. Please **use it responsibly**: keep request volumes modest,
+respect each site's terms of use, and treat the output as informational only,
+not financial advice.
+
 ## License
 
-MIT. For informational purposes only; not financial advice.
+Licensed under the **GNU General Public License v3.0** (GPLv3). See
+[`LICENSE`](LICENSE). For informational purposes only; not financial advice.
