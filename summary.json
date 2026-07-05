@@ -1,22 +1,30 @@
 {
-  "USD/INR": {
+  "USD": {
     "days": 365,
     "window": "2025-07-06 to 2026-07-05",
+    "traveller_mc_win_pct": 58.4,
+    "traveller_mc_adv_mean_pct": 0.0568,
+    "traveller_mc_adv_min_pct": -1.2702,
+    "traveller_mc_adv_max_pct": 1.5385,
+    "traveller_avg_visa_inr": 90.8712,
+    "traveller_avg_mc_inr": 90.8178,
+    "markup_vs_ecb_visa_pct": 0.1544,
+    "markup_vs_ecb_mc_pct": 0.097,
     "forward_mc_win_pct": 72.3,
-    "forward_mc_adv_mean_pct": 0.1406,
-    "reverse_mc_win_pct": 58.4,
-    "reverse_mc_adv_mean_pct": 0.0568,
-    "reverse_mc_adv_min_pct": -1.2702,
-    "reverse_mc_adv_max_pct": 1.5385
+    "forward_mc_adv_mean_pct": 0.1406
   },
-  "EUR/INR": {
+  "EUR": {
     "days": 365,
     "window": "2025-07-06 to 2026-07-05",
+    "traveller_mc_win_pct": 61.1,
+    "traveller_mc_adv_mean_pct": 0.067,
+    "traveller_mc_adv_min_pct": -1.2702,
+    "traveller_mc_adv_max_pct": 1.953,
+    "traveller_avg_visa_inr": 106.272,
+    "traveller_avg_mc_inr": 106.1982,
+    "markup_vs_ecb_visa_pct": 0.4908,
+    "markup_vs_ecb_mc_pct": 0.423,
     "forward_mc_win_pct": 67.1,
-    "forward_mc_adv_mean_pct": 0.1381,
-    "reverse_mc_win_pct": 61.1,
-    "reverse_mc_adv_mean_pct": 0.067,
-    "reverse_mc_adv_min_pct": -1.2702,
-    "reverse_mc_adv_max_pct": 1.953
+    "forward_mc_adv_mean_pct": 0.1381
   }
 }
