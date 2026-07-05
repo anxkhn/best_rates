@@ -1,0 +1,10 @@
+[project]
+name = "best-rates"
+version = "0.1.0"
+description = "Visa vs Mastercard INR card FX rates: a one-year daily tracker, EDA, and comparison CLI"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "curl-cffi>=0.15.0",
+    "matplotlib>=3.11.0",
+]
